@@ -1,10 +1,10 @@
 :root {
-  --bg-main: #78947F;
-  --bg-second: #F2EBDD;
-  --accent-teal: #185844;
-  --accent-gold: #B08A4F;
-  --text-white: #102F27;
-  --text-soft: #FFFFFF;
+  --bg-main: #203B37;
+  --bg-second: #5A8F76;
+  --accent-teal: #081B1B;
+  --accent-gold: #C18D52;
+  --text-white: #EEE882;
+  --text-soft: #96CDB0;
 }
 
 * {
