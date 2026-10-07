@@ -8,6 +8,9 @@ const server = http.createServer(app);
 const io = new Server(server);
 
 app.use(express.static(path.join(__dirname, 'public')));
+app.get('/guest', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'guest.html'));
+});
 
 // облака хранятся в памяти: код -> { question, words: Map }
 const clouds = new Map();
