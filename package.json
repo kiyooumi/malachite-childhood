@@ -1,7 +1,7 @@
 {
-  "name": "malachite-cloud",
+  "name": "word-cloud",
   "version": "1.0.0",
-  "description": "Облако слов — Малахитовое детство (Дворец молодёжи)",
+  "description": "Облако слов — Малахитовое детство",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
