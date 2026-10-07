@@ -1,77 +1,63 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Облако слов — Малахитовое детство</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/style.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Облако слов — ведущий</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 </head>
 <body>
   <header class="header">
-    <img src="/logo.png" alt="Малахитовое детство" class="logo" />
-    <div class="title-block">
-      <h1>Облако слов</h1>
-      <p>Задайте вопрос — гости ответят одним словом</p>
-    </div>
+    <img src="/logo.png" alt="Малахитовое детство" class="logo-main">
   </header>
 
   <main class="container">
-    <!-- ЭКРАН НАСТРОЙКИ -->
+    <!-- Экран настройки -->
     <section id="setupScreen" class="card">
-      <div class="setup-form">
-        <div>
-          <label class="label" for="questionInput">Вопрос аудитории</label>
-          <input id="questionInput" class="input" type="text" placeholder="Например: Каким должно быть детство?" maxlength="200" />
-        </div>
-        <button id="createBtn" class="btn" type="button">Создать облако</button>
-      </div>
+      <h1 class="title">Облако слов</h1>
+      <p class="subtitle">Задайте вопрос — гости ответят одним словом</p>
+
+      <label class="field-label" for="questionInput">Вопрос аудитории</label>
+      <input type="text" id="questionInput" class="input" placeholder="Например: Каким вы видите наш проект?">
+
+      <button id="createBtn" class="btn">Создать облако</button>
     </section>
 
-    <!-- ЭКРАН КОМНАТЫ -->
+    <!-- Экран комнаты -->
     <section id="roomScreen" class="card" hidden>
-      <div class="room-info">
-        <div class="code-block">
-          <div class="code-label">Код комнаты</div>
-          <div id="codeValue" class="code-value">------</div>
-          <div class="code-hint">Покажите код или QR-код гостям</div>
-        </div>
-        <div>
-          <div id="qrcode" class="qr-block"></div>
-        </div>
+      <p class="room-question" id="roomQuestion"></p>
+      <p class="room-hint">Введите код на странице гостя:</p>
+      <div class="code-display" id="codeDisplay"></div>
+
+      <div class="qr-wrap">
+        <div id="qrcode"></div>
+        <p class="qr-hint">Наведите камеру телефона</p>
       </div>
 
-      <div id="questionBanner" class="question-banner"></div>
-
-      <div id="cloud" class="cloud">
-        <div class="empty">Ожидание ответов гостей…</div>
-      </div>
+      <h2 class="cloud-title">Облако слов</h2>
+      <div id="cloudBox" class="cloud-box"></div>
     </section>
   </main>
 
   <footer class="footer">
-    <img src="/logo-dm.png" alt="Дворец молодёжи" />
-    <span>Дворец молодёжи · Свердловская область · «Малахитовое детство»</span>
+    <img src="/logo-dm.png" alt="Дворец молодёжи" class="logo-dm">
   </footer>
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
     const socket = io();
+    let currentCode = null;
 
     const setupScreen = document.getElementById('setupScreen');
     const roomScreen = document.getElementById('roomScreen');
     const questionInput = document.getElementById('questionInput');
     const createBtn = document.getElementById('createBtn');
-    const codeValue = document.getElementById('codeValue');
-    const qrcodeEl = document.getElementById('qrcode');
-    const questionBanner = document.getElementById('questionBanner');
-    const cloudEl = document.getElementById('cloud');
-
-    let currentCode = null;
-    let qrInstance = null;
+    const roomQuestion = document.getElementById('roomQuestion');
+    const codeDisplay = document.getElementById('codeDisplay');
+    const qrcodeDiv = document.getElementById('qrcode');
+    const cloudBox = document.getElementById('cloudBox');
 
     createBtn.addEventListener('click', () => {
       const q = questionInput.value.trim();
@@ -79,57 +65,42 @@
         questionInput.focus();
         return;
       }
-      socket.emit('createCloud', q);
-    });
-
-    questionInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') createBtn.click();
+      socket.emit('createCloud', { question: q });
     });
 
     socket.on('cloudCreated', ({ code, question }) => {
       currentCode = code;
-
       setupScreen.hidden = true;
       roomScreen.hidden = false;
 
-      codeValue.textContent = code;
-      questionBanner.textContent = question;
+      roomQuestion.textContent = question;
+      codeDisplay.textContent = code;
 
-      // QR
-      qrcodeEl.innerHTML = '';
-      const guestUrl = window.location.origin + '/guest?code=' + code;
-      qrInstance = new QRCode(qrcodeEl, {
-        text: guestUrl,
+      qrcodeDiv.innerHTML = '';
+      new QRCode(qrcodeDiv, {
+        text: window.location.origin + '/guest?code=' + code,
         width: 180,
         height: 180,
         colorDark: '#0F4D3A',
-        colorLight: '#FFFFFF',
-        correctLevel: QRCode.CorrectLevel.H
+        colorLight: '#FFFFFF'
       });
     });
 
     socket.on('cloudUpdate', ({ code, words }) => {
-      if (!currentCode || code !== currentCode) return;
+      if (code !== currentCode) return;
       renderCloud(words);
     });
 
     function renderCloud(words) {
-      if (!words || words.length === 0) {
-        cloudEl.innerHTML = '<div class="empty">Ожидание ответов гостей…</div>';
-        return;
-      }
-
-      // перемешиваем для случайного порядка
+      cloudBox.innerHTML = '';
       const shuffled = words.slice().sort(() => Math.random() - 0.5);
-
-      cloudEl.innerHTML = '';
-      shuffled.forEach((item, idx) => {
+      shuffled.forEach(({ word, count }) => {
         const span = document.createElement('span');
-        span.className = 'word';
-        span.textContent = item.word;
-        span.style.fontSize = (16 + item.count * 8) + 'px';
-        span.style.color = (idx % 2 === 0) ? '#FFFFFF' : '#F2B705';
-        cloudEl.appendChild(span);
+        span.className = 'cloud-word';
+        if (Math.random() < 0.4) span.classList.add('gold');
+        span.style.fontSize = (16 + count * 8) + 'px';
+        span.textContent = word;
+        cloudBox.appendChild(span);
       });
     }
   </script>
