@@ -1,114 +1,86 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Ответить — Облако слов</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/style.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Облако слов — гость</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
 </head>
 <body>
   <header class="header">
-    <img src="/logo.png" alt="Малахитовое детство" class="logo" />
-    <div class="title-block">
-      <h1>Облако слов</h1>
-      <p>Ответьте одним словом</p>
-    </div>
+    <img src="/logo.png" alt="Малахитовое детство" class="logo-main small">
   </header>
 
-  <main class="guest-wrap">
-    <section class="guest-card">
-      <h2>Ваш ответ</h2>
-      <form id="guestForm" class="guest-form" autocomplete="off">
-        <div id="codeFieldWrap">
-          <label class="label" for="codeInput">Введите код комнаты</label>
-          <input id="codeInput" class="input code-input" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="000000" />
-        </div>
+  <main class="container">
+    <section class="card">
+      <h1 class="title">Ваше слово</h1>
+      <p class="subtitle">Ответьте одним словом — оно появится в облаке</p>
 
-        <div>
-          <label class="label" for="wordInput">Ваше слово</label>
-          <input id="wordInput" class="input" type="text" placeholder="Одно слово" maxlength="30" />
-        </div>
+      <label class="field-label" for="codeInput">Код комнаты</label>
+      <input type="text" id="codeInput" class="input" inputmode="numeric" maxlength="6" placeholder="XXXXXX">
 
-        <button id="submitBtn" class="btn" type="submit">Отправить</button>
-      </form>
-      <div id="status" class="status"></div>
+      <label class="field-label" for="wordInput">Ваше слово</label>
+      <input type="text" id="wordInput" class="input" maxlength="40" placeholder="Одно слово">
+
+      <button id="sendBtn" class="btn">Отправить</button>
+      <p id="statusMsg" class="status" hidden></p>
     </section>
   </main>
 
   <footer class="footer">
-    <img src="/logo-dm.png" alt="Дворец молодёжи" />
-    <span>Дворец молодёжи · Свердловская область</span>
+    <img src="/logo-dm.png" alt="Дворец молодёжи" class="logo-dm">
   </footer>
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
     const socket = io();
 
-    const codeFieldWrap = document.getElementById('codeFieldWrap');
+    const params = new URLSearchParams(window.location.search);
+    const urlCode = params.get('code') || '';
+
     const codeInput = document.getElementById('codeInput');
     const wordInput = document.getElementById('wordInput');
-    const form = document.getElementById('guestForm');
-    const submitBtn = document.getElementById('submitBtn');
-    const statusEl = document.getElementById('status');
+    const sendBtn = document.getElementById('sendBtn');
+    const statusMsg = document.getElementById('statusMsg');
 
-    let codeFromUrl = null;
-
-    const params = new URLSearchParams(window.location.search);
-    const urlCode = (params.get('code') || '').trim();
-
-    if (urlCode && /^\d{6}$/.test(urlCode)) {
-      codeFromUrl = urlCode;
+    if (urlCode) {
       codeInput.value = urlCode;
-      codeFieldWrap.hidden = true;
+      codeInput.readOnly = true;
       wordInput.focus();
-    } else {
-      codeInput.focus();
     }
 
-    // авто-заполнение только цифрами
-    codeInput.addEventListener('input', () => {
-      codeInput.value = codeInput.value.replace(/\D/g, '').slice(0, 6);
-    });
-
-    form.addEventListener('submit', (e) => {
-      e.preventDefault();
-
-      const code = codeFromUrl || codeInput.value.trim();
+    function send() {
+      const code = codeInput.value.trim();
       const word = wordInput.value.trim();
 
       if (!/^\d{6}$/.test(code)) {
-        setStatus('Введите 6-значный код комнаты', 'err');
+        showStatus('Введите код комнаты — 6 цифр', true);
         return;
       }
       if (!word) {
-        setStatus('Введите слово', 'err');
-        wordInput.focus();
+        showStatus('Введите слово', true);
         return;
       }
 
-      submitBtn.disabled = true;
       socket.emit('submitWord', { code, word });
-    });
-
-    socket.on('wordAccepted', ({ word }) => {
-      submitBtn.disabled = false;
       wordInput.value = '';
-      wordInput.focus();
-      setStatus('Спасибо! Слово «' + word + '» принято.', 'ok');
-    });
-
-    socket.on('errorMessage', ({ message }) => {
-      submitBtn.disabled = false;
-      setStatus(message, 'err');
-    });
-
-    function setStatus(text, type) {
-      statusEl.textContent = text;
-      statusEl.className = 'status' + (type ? ' ' + type : '');
+      showStatus('Слово отправлено!', false);
     }
+
+    function showStatus(text, isError) {
+      statusMsg.hidden = false;
+      statusMsg.textContent = text;
+      statusMsg.classList.toggle('error', isError);
+    }
+
+    sendBtn.addEventListener('click', send);
+    wordInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') send();
+    });
+    codeInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') wordInput.focus();
+    });
   </script>
 </body>
 </html>
