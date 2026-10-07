@@ -1,85 +1,100 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Облако слов — гость</title>
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Отправить слово — Малахитовое детство</title>
+  <link rel="stylesheet" href="/style.css" />
+  <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
-  <header class="header">
-    <img src="public/Hn2xe3Og8RkR4-IUS2YgWDGYWWVZlAvb_WAISbJ48j1DgbCjbpwgjR_1em036F-FEValbLUpY89YvMmASllJtEn0.jpg.jpeg" alt="Малахитовое детство" class="logo-main small">
-  </header>
+  <div class="container">
+    <div class="guest-wrap">
+      <div class="brand">
+        <img src="/logo.png" alt="Логотип" class="logo" />
+        <p>© 2026 Дворец Молодёжи.</p>
+      </div>
 
-  <main class="container">
-    <section class="card">
-      <h1 class="title">Ваше слово</h1>
-      <p class="subtitle">Ответьте одним словом — оно появится в облаке</p>
+      <section class="card">
+        <h1>Ваше слово</h1>
+        <p class="subtitle">Введите слово и отправьте его ведущему.</p>
 
-      <label class="field-label" for="codeInput">Код комнаты</label>
-      <input type="text" id="codeInput" class="input" inputmode="numeric" maxlength="6" placeholder="XXXXXX">
+        <label for="codeInput">Код комнаты</label>
+        <input
+          type="text"
+          id="codeInput"
+          placeholder="6 цифр"
+          maxlength="6"
+          inputmode="numeric"
+          autocomplete="off"
+        />
 
-      <label class="field-label" for="wordInput">Ваше слово</label>
-      <input type="text" id="wordInput" class="input" maxlength="40" placeholder="Одно слово">
+        <label for="wordInput" style="margin-top:18px;">Слово</label>
+        <input
+          type="text"
+          id="wordInput"
+          placeholder="Например: солнце"
+          maxlength="40"
+          autocomplete="off"
+        />
 
-      <button id="sendBtn" class="btn">Отправить</button>
-      <p id="statusMsg" class="status" hidden></p>
-    </section>
-  </main>
+        <button id="sendBtn">Отправить</button>
 
-  <footer class="footer">
-    <p>© 2026 Дворец Молодёжи.</p>
-  </footer>
+        <div id="message" hidden></div>
+      </section>
 
-  <script src="/socket.io/socket.io.js"></script>
+      <div class="footer">© Малахитовое детство</div>
+    </div>
+  </div>
+
   <script>
     const socket = io();
-
-    const params = new URLSearchParams(window.location.search);
-    const urlCode = params.get('code') || '';
 
     const codeInput = document.getElementById('codeInput');
     const wordInput = document.getElementById('wordInput');
     const sendBtn = document.getElementById('sendBtn');
-    const statusMsg = document.getElementById('statusMsg');
+    const message = document.getElementById('message');
 
+    // Подстановка кода из ?code=
+    const params = new URLSearchParams(window.location.search);
+    const urlCode = params.get('code');
     if (urlCode) {
-      codeInput.value = urlCode;
-      codeInput.readOnly = true;
-      wordInput.focus();
+      codeInput.value = urlCode.replace(/\D/g, '').slice(0, 6);
     }
 
-    function send() {
-      const code = codeInput.value.trim();
+    function showMessage(text, isError) {
+      message.hidden = false;
+      message.className = isError ? 'error' : 'success';
+      message.textContent = text;
+    }
+
+    sendBtn.addEventListener('click', () => {
+      const code = codeInput.value.replace(/\D/g, '').slice(0, 6);
       const word = wordInput.value.trim();
 
-      if (!/^\d{6}$/.test(code)) {
-        showStatus('Введите код комнаты — 6 цифр', true);
+      if (code.length !== 6) {
+        showMessage('Введите корректный 6-значный код комнаты.', true);
+        codeInput.focus();
         return;
       }
       if (!word) {
-        showStatus('Введите слово', true);
+        showMessage('Введите слово.', true);
+        wordInput.focus();
         return;
       }
 
       socket.emit('submitWord', { code, word });
+      showMessage('Слово «' + word + '» отправлено! 🎉', false);
       wordInput.value = '';
-      showStatus('Слово отправлено!', false);
-    }
-
-    function showStatus(text, isError) {
-      statusMsg.hidden = false;
-      statusMsg.textContent = text;
-      statusMsg.classList.toggle('error', isError);
-    }
-
-    sendBtn.addEventListener('click', send);
-    wordInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') send();
+      wordInput.focus();
     });
-    codeInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') wordInput.focus();
+
+    wordInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') sendBtn.click();
+    });
+
+    codeInput.addEventListener('input', () => {
+      codeInput.value = codeInput.value.replace(/\D/g, '').slice(0, 6);
     });
   </script>
 </body>
