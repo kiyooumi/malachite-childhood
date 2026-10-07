@@ -1,88 +1,119 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Облако слов — ведущий</title>
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/style.css">
-  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Облако слов — Малахитовое детство</title>
+  <link rel="stylesheet" href="/style.css" />
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 </head>
 <body>
-  <header class="header">
-    <img src="public/Hn2xe3Og8RkR4-IUS2YgWDGYWWVZlAvb_WAISbJ48j1DgbCjbpwgjR_1em036F-FEValbLUpY89YvMmASllJtEn0.jpg.jpeg" alt="Малахитовое детство" class="logo-main">
-  </header>
+  <div class="container">
+    <div class="brand">
+      <img src="/logo.png" alt="Малахитовое детство" class="logo" />
+      <p>© 2026 Дворец Молодёжи.</p>
+    </div>
 
-  <main class="container">
-    <!-- Экран настройки -->
+    <!-- ЭКРАН НАСТРОЙКИ -->
     <section id="setupScreen" class="card">
-      <h1 class="title">Облако слов</h1>
-      <p class="subtitle">Задайте вопрос — гости ответят одним словом</p>
+      <h1>Облако слов</h1>
+      <p class="subtitle">Задайте вопрос — гости отправят свои слова с телефонов.</p>
 
-      <label class="field-label" for="questionInput">Вопрос аудитории</label>
-      <input type="text" id="questionInput" class="input" placeholder="Например: Каким вы видите наш проект?">
-
-      <button id="createBtn" class="btn">Создать облако</button>
+      <label for="questionInput">Вопрос для гостей</label>
+      <input
+        type="text"
+        id="questionInput"
+        placeholder="Например: Какое твоё любимое слово?"
+        maxlength="120"
+        autocomplete="off"
+      />
+      <button id="createBtn">Создать облако</button>
     </section>
 
-    <!-- Экран комнаты -->
-    <section id="roomScreen" class="card" hidden>
-      <p class="room-question" id="roomQuestion"></p>
-      <p class="room-hint">Введите код на странице гостя:</p>
-      <div class="code-display" id="codeDisplay"></div>
+    <!-- ЭКРАН КОМНАТЫ -->
+    <section id="roomScreen" class="card room-card" hidden>
+      <h2 class="room-title">Облако создано!</h2>
 
-      <div class="qr-wrap">
-        <div id="qrcode"></div>
-        <p class="qr-hint">Наведите камеру телефона</p>
+      <div class="room-layout">
+        <!-- ЛЕВАЯ КОЛОНКА: код + QR -->
+        <aside class="room-left">
+          <div class="code-block">
+            <div class="code-label">Код комнаты</div>
+            <div class="code-value" id="codeValue">000000</div>
+          </div>
+
+          <div class="qr-block">
+            <canvas id="qrCanvas"></canvas>
+            <div class="qr-caption" id="qrLink"></div>
+          </div>
+
+          <div class="question-display" id="questionDisplay">Вопрос</div>
+        </aside>
+
+        <!-- ПРАВАЯ КОЛОНКА: облако слов -->
+        <main class="room-right">
+          <div class="cloud" id="cloud">
+            <div class="empty-note" id="emptyNote">Ждём слова от гостей…</div>
+          </div>
+        </main>
       </div>
-
-      <h2 class="cloud-title">Облако слов</h2>
-      <div id="cloudBox" class="cloud-box"></div>
     </section>
-  </main>
 
-  <footer class="footer">
-    <p>© 2026 Дворец Молодёжи.</p>
-  </footer>
+    <div class="footer">© Малахитовое детство</div>
+  </div>
 
-  <script src="/socket.io/socket.io.js"></script>
   <script>
     const socket = io();
-    let currentCode = null;
 
     const setupScreen = document.getElementById('setupScreen');
     const roomScreen = document.getElementById('roomScreen');
     const questionInput = document.getElementById('questionInput');
     const createBtn = document.getElementById('createBtn');
-    const roomQuestion = document.getElementById('roomQuestion');
-    const codeDisplay = document.getElementById('codeDisplay');
-    const qrcodeDiv = document.getElementById('qrcode');
-    const cloudBox = document.getElementById('cloudBox');
+    const codeValue = document.getElementById('codeValue');
+    const questionDisplay = document.getElementById('questionDisplay');
+    const qrCanvas = document.getElementById('qrCanvas');
+    const qrLink = document.getElementById('qrLink');
+    const cloud = document.getElementById('cloud');
+    const emptyNote = document.getElementById('emptyNote');
+
+    let currentCode = null;
 
     createBtn.addEventListener('click', () => {
-      const q = questionInput.value.trim();
-      if (!q) {
+      const question = questionInput.value.trim();
+      if (!question) {
         questionInput.focus();
         return;
       }
-      socket.emit('createCloud', { question: q });
+      socket.emit('createCloud', question);
+    });
+
+    questionInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') createBtn.click();
     });
 
     socket.on('cloudCreated', ({ code, question }) => {
       currentCode = code;
+
+      // Строго по ТЗ: переключение только через hidden
       setupScreen.hidden = true;
       roomScreen.hidden = false;
 
-      roomQuestion.textContent = question;
-      codeDisplay.textContent = code;
+      codeValue.textContent = code;
+      questionDisplay.textContent = question;
 
-      qrcodeDiv.innerHTML = '';
-      new QRCode(qrcodeDiv, {
-        text: window.location.origin + '/guest?code=' + code,
-        width: 180,
-        height: 180,
-        colorDark: '#0F4D3A',
-        colorLight: '#FFFFFF'
+      const guestUrl = window.location.origin + '/guest?code=' + code;
+      qrLink.textContent = guestUrl;
+
+      QRCode.toCanvas(qrCanvas, guestUrl, {
+        width: 220,
+        margin: 1,
+        color: {
+          dark: '#0F4D3A',
+          light: '#FFFFFF'
+        }
+      }, (err) => {
+        if (err) console.error('QR error:', err);
       });
     });
 
@@ -92,15 +123,22 @@
     });
 
     function renderCloud(words) {
-      cloudBox.innerHTML = '';
-      const shuffled = words.slice().sort(() => Math.random() - 0.5);
-      shuffled.forEach(({ word, count }) => {
+      cloud.innerHTML = '';
+
+      if (!words || words.length === 0) {
+        const note = document.createElement('div');
+        note.className = 'empty-note';
+        note.textContent = 'Ждём слова от гостей…';
+        cloud.appendChild(note);
+        return;
+      }
+
+      words.forEach(({ word, count }) => {
         const span = document.createElement('span');
-        span.className = 'cloud-word';
-        if (Math.random() < 0.4) span.classList.add('gold');
-        span.style.fontSize = (16 + count * 8) + 'px';
+        span.className = 'word';
         span.textContent = word;
-        cloudBox.appendChild(span);
+        span.style.fontSize = (16 + count * 8) + 'px';
+        cloud.appendChild(span);
       });
     }
   </script>
